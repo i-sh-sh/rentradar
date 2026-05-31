@@ -1,12 +1,27 @@
-- 👋 Hi, I’m @i-sh-sh
-- 👀 I’m interested in music and football 
-- 🌱 I’m currently learning computer science 
-  
-- 📫 How to reach me _ dont
-- 😄 Pronouns: *()*
-- ⚡ Fun fact: life is a mess😌
+# 📡 RentRadar
 
-<!---
-i-sh-sh/i-sh-sh is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-You can click the Preview link to take a look at your changes.
---->
+אפליקציית ווב לחיפוש וניהול דירות — עם ייבוא אוטומטי מיד2, השוואת דירות, מפה ועוד.
+
+## פיצ’רים
+
+- **ייבוא מיד2** — סריקה אוטומטית לפי עיר, שכונה, מחיר, חדרים
+- **רשימת דירות** עם פילטרים מלאים ומיון
+- **השוואת דירות** — בחר 2–4 דירות והשווה כל הנתונים בטבלה
+- **מפה** — כל הדירות על מפה, לחיצה על פין מציגה פרטים
+- **שמירת דירות** — סמן מועדפים עם הערות ודירוג
+- **היסטוריית מחיר** — גרף מחיר לאורך זמן
+- **מחיר למ"ר** — חישוב אוטומטי
+
+## התקנה
+
+```bash
+cp .env.example .env
+docker compose up
+```
+
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000/docs
+
+## Stack
+
+React + Vite + TypeScript + Tailwind | FastAPI + PostgreSQL | Leaflet + Recharts

@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  direction: rtl;
+  font-family: "Assistant", system-ui, sans-serif;
+  @apply bg-gray-50 text-gray-900;
+}
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+}
