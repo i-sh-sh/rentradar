@@ -12,7 +12,7 @@ const links = [
 export default function Navbar() {
   return (
     <nav className="bg-white border-b sticky top-0 z-20 flex items-center justify-between px-6 h-14">
-      <div className="font-bold text-xl text-blue-700">🏠 דירה סרץ׳</div>
+      <div className="font-bold text-xl text-blue-700">📡 RentRadar</div>
       <div className="flex gap-1">
         {links.map(({ to, icon: Icon, label }) => (
           <NavLink
