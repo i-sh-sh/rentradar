@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-YAD2_API_BASE = "https://gw.yad2.co.il/feed-search-legacy/realestate/rent"
+YAD2_API_BASE = "https://gw.yad2.co.il/feed-search/realestate/rent"
 
 CITY_CODES = {
     "תל אביב יפו": "5000",
@@ -34,11 +34,11 @@ CITY_CODES = {
 }
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "he-IL,he;q=0.9,en;q=0.8",
-    "Referer": "https://m.yad2.co.il/",
-    "Origin": "https://m.yad2.co.il",
+    "Referer": "https://www.yad2.co.il/realestate/rent",
+    "Origin": "https://www.yad2.co.il",
 }
 
 
@@ -176,20 +176,33 @@ async def fetch_listings(
             except Exception as e:
                 raise RuntimeError(f"Yad2 API request failed on page {page}: {e}") from e
 
-            feed = data.get("data", {}).get("feed", {})
-            items = feed.get("feed_items") or data.get("data", {}).get("items") or []
+            # Try multiple response shapes
+            d = data.get("data") or data
+            feed = d.get("feed") or {}
+            items = (
+                feed.get("feed_items")
+                or d.get("items")
+                or d.get("listings")
+                or data.get("items")
+                or []
+            )
 
             if not items:
                 break
 
             for item in items:
-                if item.get("type") in ("ad", "promote"):
+                if item.get("type") in ("ad", "promote", "banner"):
                     continue
                 parsed = _parse_listing(item)
                 if parsed.get("yad2_id"):
                     all_listings.append(parsed)
 
-            total_pages = feed.get("total_pages") or data.get("data", {}).get("pagination", {}).get("total_pages") or page
+            total_pages = (
+                feed.get("total_pages")
+                or d.get("pagination", {}).get("total_pages")
+                or d.get("totalPages")
+                or page
+            )
             if page >= total_pages:
                 break
 
