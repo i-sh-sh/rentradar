@@ -1,22 +1,23 @@
 import { useState } from "react";
 import { useScrapeJobs } from "../api/apartments";
 import { useMutation } from "@tanstack/react-query";
-import { Loader2, CheckCircle, XCircle, Clock, BookMarked, ExternalLink, Clipboard } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock, BookMarked, ExternalLink, Upload } from "lucide-react";
 import { api } from "../api/client";
 
 export default function AdminPage() {
   const { data: jobs } = useScrapeJobs();
+  const [pasteText, setPasteText] = useState("");
   const [pasteResult, setPasteResult] = useState<string | null>(null);
 
   const pasteImport = useMutation({
-    mutationFn: async () => {
-      const text = await navigator.clipboard.readText();
+    mutationFn: async (text: string) => {
       const payload = JSON.parse(text);
       const res = await api.post("/scraper/import", payload);
       return res.data as { imported: number };
     },
     onSuccess: (data) => {
       setPasteResult(`✅ יובאו ${data.imported} דירות בהצלחה!`);
+      setPasteText("");
     },
     onError: (e: Error) => {
       setPasteResult(`❌ שגיאה: ${e.message}`);
@@ -34,27 +35,36 @@ export default function AdminPage() {
           <p className="text-sm text-blue-700 mb-3">
             יד2 חוסמים סריקה אוטומטית. הפתרון: גלוש ביד2 בדפדפן שלך, לחץ על הסימנייה — הנתונים יועתקו — ואז לחץ "הדבק וייבא" כאן.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <a
-              href="http://localhost:8000/scraper/bookmarklet"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700"
-            >
-              <ExternalLink size={14} />
-              הוראות + התקנת ה-Bookmarklet
-            </a>
+          <a
+            href="http://localhost:8000/scraper/bookmarklet"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700"
+          >
+            <ExternalLink size={14} />
+            הוראות + התקנת ה-Bookmarklet
+          </a>
+          <div className="mt-4">
+            <label className="text-sm font-medium text-blue-800 block mb-1">
+              לאחר לחיצה על הסימנייה — הדבק כאן (Ctrl+V):
+            </label>
+            <textarea
+              className="w-full border border-blue-300 rounded-lg px-3 py-2 text-xs font-mono h-20 resize-none"
+              placeholder='{"next_data": ...}'
+              value={pasteText}
+              onChange={(e) => { setPasteText(e.target.value); setPasteResult(null); }}
+            />
             <button
-              onClick={() => { setPasteResult(null); pasteImport.mutate(); }}
-              disabled={pasteImport.isPending}
-              className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+              onClick={() => pasteImport.mutate(pasteText)}
+              disabled={pasteImport.isPending || !pasteText}
+              className="mt-2 inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
-              {pasteImport.isPending ? <Loader2 size={14} className="animate-spin" /> : <Clipboard size={14} />}
-              הדבק וייבא
+              {pasteImport.isPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              ייבא
             </button>
           </div>
           {pasteResult && (
-            <div className={`mt-3 text-sm font-medium ${pasteResult.startsWith("✅") ? "text-green-700" : "text-red-600"}`}>
+            <div className={`mt-2 text-sm font-medium ${pasteResult.startsWith("✅") ? "text-green-700" : "text-red-600"}`}>
               {pasteResult}
             </div>
           )}
