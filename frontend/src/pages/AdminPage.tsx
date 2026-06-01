@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useScrapeJobs } from "../api/apartments";
 import { useMutation } from "@tanstack/react-query";
-import { Loader2, CheckCircle, XCircle, Clock, BookMarked, ExternalLink, ClipboardPaste } from "lucide-react";
-import api from "../api/client";
+import { Loader2, CheckCircle, XCircle, Clock, BookMarked, ExternalLink, Clipboard } from "lucide-react";
+import { api } from "../api/client";
 
 export default function AdminPage() {
   const { data: jobs } = useScrapeJobs();
@@ -49,7 +49,7 @@ export default function AdminPage() {
               disabled={pasteImport.isPending}
               className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
-              {pasteImport.isPending ? <Loader2 size={14} className="animate-spin" /> : <ClipboardPaste size={14} />}
+              {pasteImport.isPending ? <Loader2 size={14} className="animate-spin" /> : <Clipboard size={14} />}
               הדבק וייבא
             </button>
           </div>
