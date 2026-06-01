@@ -29,14 +29,6 @@ CITY_CODES = {
     "אילת": "500",
 }
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "he-IL,he;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Referer": "https://www.yad2.co.il/",
-}
-
 
 def _parse_listing(raw: dict[str, Any]) -> dict[str, Any]:
     coord = raw.get("coordinates") or {}
@@ -125,11 +117,11 @@ def _parse_listing(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _extract_items_from_next_data(next_data: dict) -> tuple[list, int]:
-    """Dig through Next.js page props to find listings and total pages."""
+def parse_next_data(next_data: dict) -> list[dict[str, Any]]:
+    """Parse listings from a Yad2 __NEXT_DATA__ JSON blob (sent by bookmarklet)."""
     props = next_data.get("props", {}).get("pageProps", {})
+    results = []
 
-    # Try common locations
     candidates = [
         props.get("feed"),
         props.get("data", {}).get("feed") if isinstance(props.get("data"), dict) else None,
@@ -137,18 +129,29 @@ def _extract_items_from_next_data(next_data: dict) -> tuple[list, int]:
         props.get("data"),
     ]
 
+    items = []
     for candidate in candidates:
         if not candidate:
             continue
         if isinstance(candidate, list):
-            return candidate, 1
+            items = candidate
+            break
         if isinstance(candidate, dict):
-            items = candidate.get("feed_items") or candidate.get("items") or candidate.get("listings")
-            if items:
-                total = candidate.get("total_pages") or candidate.get("totalPages") or 1
-                return items, int(total)
+            found = candidate.get("feed_items") or candidate.get("items") or candidate.get("listings")
+            if found:
+                items = found
+                break
 
-    return [], 1
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") in ("ad", "promote", "banner"):
+            continue
+        parsed = _parse_listing(item)
+        if parsed.get("yad2_id"):
+            results.append(parsed)
+
+    return results
 
 
 async def fetch_listings(
@@ -161,63 +164,8 @@ async def fetch_listings(
     max_pages: int = 5,
     proxy: str | None = None,
 ) -> list[dict[str, Any]]:
-    city_code = CITY_CODES.get(city, city)
-
-    params: dict[str, Any] = {"city": city_code}
-    if rooms_min is not None:
-        params["rooms"] = f"{rooms_min}-{rooms_max or 10}"
-    if price_min is not None:
-        params["price"] = f"{price_min}-{price_max or 99999}"
-    if neighborhood:
-        params["neighborhood"] = neighborhood
-
-    all_listings: list[dict[str, Any]] = []
-
-    client_kwargs: dict = {"headers": HEADERS, "timeout": 30, "follow_redirects": True}
-    if proxy:
-        client_kwargs["proxy"] = proxy
-
-    async with httpx.AsyncClient(**client_kwargs) as client:
-        for page in range(1, max_pages + 1):
-            params["page"] = page
-            await asyncio.sleep(random.uniform(2.0, 5.0))
-
-            try:
-                resp = await client.get(YAD2_SEARCH_URL, params=params)
-                resp.raise_for_status()
-                html = resp.text
-            except Exception as e:
-                raise RuntimeError(f"Yad2 request failed on page {page}: {e}") from e
-
-            # Extract JSON from Next.js __NEXT_DATA__
-            match = re.search(
-                r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
-                html,
-                re.DOTALL,
-            )
-            if not match:
-                raise RuntimeError("Could not find listing data in Yad2 page (site may have changed or blocked the request)")
-
-            try:
-                next_data = json.loads(match.group(1))
-            except json.JSONDecodeError as e:
-                raise RuntimeError(f"Failed to parse Yad2 page data: {e}") from e
-
-            items, total_pages = _extract_items_from_next_data(next_data)
-
-            if not items:
-                break
-
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                if item.get("type") in ("ad", "promote", "banner"):
-                    continue
-                parsed = _parse_listing(item)
-                if parsed.get("yad2_id"):
-                    all_listings.append(parsed)
-
-            if page >= total_pages:
-                break
-
-    return all_listings
+    """Attempt to scrape Yad2 directly (may be blocked by Cloudflare)."""
+    raise RuntimeError(
+        "הסריקה האוטומטית חסומה על ידי יד2. "
+        "השתמש בכפתור הייבוא הידני בדפדפן שלך — ראה הוראות בעמוד הסריקה."
+    )
