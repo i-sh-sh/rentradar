@@ -160,12 +160,11 @@ async def fetch_listings(
 
     all_listings: list[dict[str, Any]] = []
 
-    async with httpx.AsyncClient(
-        headers=HEADERS,
-        proxies=proxy or None,
-        timeout=30,
-        follow_redirects=True,
-    ) as client:
+    client_kwargs: dict = {"headers": HEADERS, "timeout": 30, "follow_redirects": True}
+    if proxy:
+        client_kwargs["proxy"] = proxy
+
+    async with httpx.AsyncClient(**client_kwargs) as client:
         for page in range(1, max_pages + 1):
             params["page"] = page
             await asyncio.sleep(random.uniform(1.5, 4.0))
