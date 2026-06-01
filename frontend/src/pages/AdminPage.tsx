@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useScrapeJobs, useRunScrape } from "../api/apartments";
-import { Play, Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Play, Loader2, CheckCircle, XCircle, Clock, BookMarked, ExternalLink } from "lucide-react";
 
 const CITIES = [
   "תל אביב יפו", "ירושלים", "חיפה", "ראשון לציון", "פתח תקווה",
@@ -33,7 +33,26 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">סריקת יד2</h1>
+      <h1 className="text-2xl font-bold mb-6">ייבוא מיד2</h1>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
+        <BookMarked className="text-blue-600 shrink-0 mt-1" size={24} />
+        <div>
+          <div className="font-semibold text-blue-800 mb-1">ייבוא ידני עם Bookmarklet (מומלץ)</div>
+          <p className="text-sm text-blue-700 mb-3">
+            יד2 חוסמים סריקה אוטומטית. הפתרון: גלוש ביד2 בדפדפן שלך ולחץ על סימנייה שמייבאת את הדירות ישירות.
+          </p>
+          <a
+            href="http://localhost:8000/scraper/bookmarklet"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700"
+          >
+            <ExternalLink size={14} />
+            הוראות + התקנת ה-Bookmarklet
+          </a>
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
         <h2 className="font-semibold mb-4 text-gray-700">פרמטרי סריקה</h2>
