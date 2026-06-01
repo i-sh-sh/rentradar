@@ -1,7 +1,3 @@
-"""
-Yad2 scraper using their reverse-engineered mobile API.
-Falls back to Playwright headless scraping if the API is blocked.
-"""
 import asyncio
 import json
 import random
@@ -11,7 +7,7 @@ from typing import Any
 
 import httpx
 
-YAD2_API_BASE = "https://gw.yad2.co.il/feed-search/realestate/rent"
+YAD2_SEARCH_URL = "https://www.yad2.co.il/realestate/rent"
 
 CITY_CODES = {
     "תל אביב יפו": "5000",
@@ -35,18 +31,15 @@ CITY_CODES = {
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "he-IL,he;q=0.9,en;q=0.8",
-    "Referer": "https://www.yad2.co.il/realestate/rent",
-    "Origin": "https://www.yad2.co.il",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Referer": "https://www.yad2.co.il/",
 }
 
 
 def _parse_listing(raw: dict[str, Any]) -> dict[str, Any]:
-    """Normalize a raw Yad2 API listing into our schema."""
     coord = raw.get("coordinates") or {}
-    contact = raw.get("contactName") or raw.get("agencyName") or ""
-
     images = []
     for img in raw.get("images") or []:
         if isinstance(img, dict):
@@ -132,6 +125,32 @@ def _parse_listing(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _extract_items_from_next_data(next_data: dict) -> tuple[list, int]:
+    """Dig through Next.js page props to find listings and total pages."""
+    props = next_data.get("props", {}).get("pageProps", {})
+
+    # Try common locations
+    candidates = [
+        props.get("feed"),
+        props.get("data", {}).get("feed") if isinstance(props.get("data"), dict) else None,
+        props.get("listings"),
+        props.get("data"),
+    ]
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        if isinstance(candidate, list):
+            return candidate, 1
+        if isinstance(candidate, dict):
+            items = candidate.get("feed_items") or candidate.get("items") or candidate.get("listings")
+            if items:
+                total = candidate.get("total_pages") or candidate.get("totalPages") or 1
+                return items, int(total)
+
+    return [], 1
+
+
 async def fetch_listings(
     city: str = "תל אביב יפו",
     neighborhood: str | None = None,
@@ -142,21 +161,15 @@ async def fetch_listings(
     max_pages: int = 5,
     proxy: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Fetch listings from Yad2 API. Returns list of normalized dicts."""
     city_code = CITY_CODES.get(city, city)
 
-    params: dict[str, Any] = {
-        "city": city_code,
-        "propertyGroup": "apartments",
-        "page": 1,
-        "pageSize": 40,
-    }
-    if neighborhood:
-        params["neighborhood"] = neighborhood
+    params: dict[str, Any] = {"city": city_code}
     if rooms_min is not None:
         params["rooms"] = f"{rooms_min}-{rooms_max or 10}"
     if price_min is not None:
         params["price"] = f"{price_min}-{price_max or 99999}"
+    if neighborhood:
+        params["neighborhood"] = neighborhood
 
     all_listings: list[dict[str, Any]] = []
 
@@ -167,42 +180,43 @@ async def fetch_listings(
     async with httpx.AsyncClient(**client_kwargs) as client:
         for page in range(1, max_pages + 1):
             params["page"] = page
-            await asyncio.sleep(random.uniform(1.5, 4.0))
+            await asyncio.sleep(random.uniform(2.0, 5.0))
 
             try:
-                resp = await client.get(YAD2_API_BASE, params=params)
+                resp = await client.get(YAD2_SEARCH_URL, params=params)
                 resp.raise_for_status()
-                data = resp.json()
+                html = resp.text
             except Exception as e:
-                raise RuntimeError(f"Yad2 API request failed on page {page}: {e}") from e
+                raise RuntimeError(f"Yad2 request failed on page {page}: {e}") from e
 
-            # Try multiple response shapes
-            d = data.get("data") or data
-            feed = d.get("feed") or {}
-            items = (
-                feed.get("feed_items")
-                or d.get("items")
-                or d.get("listings")
-                or data.get("items")
-                or []
+            # Extract JSON from Next.js __NEXT_DATA__
+            match = re.search(
+                r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
+                html,
+                re.DOTALL,
             )
+            if not match:
+                raise RuntimeError("Could not find listing data in Yad2 page (site may have changed or blocked the request)")
+
+            try:
+                next_data = json.loads(match.group(1))
+            except json.JSONDecodeError as e:
+                raise RuntimeError(f"Failed to parse Yad2 page data: {e}") from e
+
+            items, total_pages = _extract_items_from_next_data(next_data)
 
             if not items:
                 break
 
             for item in items:
+                if not isinstance(item, dict):
+                    continue
                 if item.get("type") in ("ad", "promote", "banner"):
                     continue
                 parsed = _parse_listing(item)
                 if parsed.get("yad2_id"):
                     all_listings.append(parsed)
 
-            total_pages = (
-                feed.get("total_pages")
-                or d.get("pagination", {}).get("total_pages")
-                or d.get("totalPages")
-                or page
-            )
             if page >= total_pages:
                 break
 
