@@ -41,14 +41,12 @@ async def get_bookmarklet_page():
     js = """(function(){
   var d=window.__NEXT_DATA__;
   if(!d){alert('לא נמצאו נתונים בדף זה. פתח דף תוצאות של יד2.');return;}
-  fetch('http://localhost:8000/scraper/import',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({next_data:d})
-  }).then(function(r){return r.json();}).then(function(j){
-    if(j.imported)alert('✅ יובאו '+j.imported+' דירות ל-RentRadar!');
-    else alert('❌ שגיאה: '+JSON.stringify(j));
-  }).catch(function(e){alert('❌ שגיאה: '+e+'. האם RentRadar פועל?');});
+  var s=JSON.stringify({next_data:d});
+  navigator.clipboard.writeText(s).then(function(){
+    alert('✅ הנתונים הועתקו! כעת חזור ל-RentRadar ולחץ "הדבק וייבא".');
+  }).catch(function(){
+    alert('❌ לא ניתן להעתיק. נסה שוב.');
+  });
 })();"""
 
     bookmarklet = f"javascript:{js}"
@@ -82,11 +80,12 @@ async def get_bookmarklet_page():
   </div>
 
   <div class="step">
-    <b>שלב 3:</b> לחץ על הסימנייה <b>"ייבא לRentRadar"</b> — הדירות מהדף הנוכחי יתווספו אוטומטית
+    <b>שלב 3:</b> לחץ על הסימנייה <b>"ייבא לRentRadar"</b> — הנתונים יועתקו ללוח העריכה
   </div>
 
   <div class="step">
-    <b>שלב 4:</b> חזור ל-<a href="http://localhost:5173" target="_blank">RentRadar</a> ותראה את הדירות
+    <b>שלב 4:</b> חזור ל-<a href="http://localhost:5173/admin" target="_blank">RentRadar — אדמין</a>
+    ולחץ על <b>"הדבק וייבא"</b>
   </div>
 
   <p style="color:#888; font-size:13px;">
